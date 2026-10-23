@@ -1,65 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
-type Status = "Seed" | "Shaping" | "Testing" | "Parked";
-
-type Idea = {
-  id: string;
-  title: string;
-  body: string;
-  status: Status;
-  createdAt: number;
-};
-
-const STATUSES: Status[] = ["Seed", "Shaping", "Testing", "Parked"];
-
-const SEED: Idea[] = [
-  {
-    id: "last-useful-view",
-    title: "Make the last useful view easy to return to",
-    body: "A small product should remember the moment that helped, not just the account that visited.",
-    status: "Shaping",
-    createdAt: Date.parse("2026-08-18"),
-  },
-  {
-    id: "decision-trail",
-    title: "Export a decision trail without opening a spreadsheet",
-    body: "Turn a short experiment into a portable note: question, signal, decision, next move.",
-    status: "Testing",
-    createdAt: Date.parse("2026-08-15"),
-  },
-  {
-    id: "quiet-onboarding",
-    title: "A quieter first run for tools with many possibilities",
-    body: "Let a person choose one useful starting point before showing the full surface area.",
-    status: "Seed",
-    createdAt: Date.parse("2026-08-11"),
-  },
-];
-
-function useLocalStorage<T>(key: string, initial: T) {
-  const [value, setValue] = useState<T>(initial);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key);
-      // The browser store is external state; hydration intentionally follows this read.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setValue(JSON.parse(raw) as T);
-    } catch {
-      // Keep the deterministic seed if browser storage is unavailable.
-    }
-    setReady(true);
-  }, [key]);
-
-  useEffect(() => {
-    if (ready) localStorage.setItem(key, JSON.stringify(value));
-  }, [key, value, ready]);
-
-  return [value, setValue] as const;
-}
+import { useMemo, useState } from "react";
+import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea as removeFromField, signalBars, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
+import { useStoredState } from "@/lib/use-stored-state";
 
 function createId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -68,10 +11,7 @@ function createId() {
 }
 
 function SignalBars({ seed }: { seed: string }) {
-  const bars = Array.from({ length: 22 }, (_, index) => {
-    const code = seed.charCodeAt(index % seed.length) || 47;
-    return 1 + ((code + index * 7) % 4);
-  });
+  const bars = signalBars(seed);
 
   return (
     <span className="idea-signal" aria-hidden="true">
@@ -83,52 +23,36 @@ function SignalBars({ seed }: { seed: string }) {
 }
 
 export default function Home() {
-  const [ideas, setIdeas] = useLocalStorage<Idea[]>("idea-field-v2", SEED);
+  const [ideas, setIdeas] = useStoredState(STORAGE_KEY, SEED, parseIdeas);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<Status | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
   const [selectedId, setSelectedId] = useState<string | null>(SEED[0]?.id ?? null);
-  const [draft, setDraft] = useState({ title: "", body: "", status: "Seed" as Status });
+  const [draft, setDraft] = useState<IdeaDraft>(EMPTY_DRAFT);
   const [notice, setNotice] = useState("");
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return ideas.filter((idea) => {
-      const matchesStatus = statusFilter === "All" || idea.status === statusFilter;
-      const matchesQuery = !needle || `${idea.title} ${idea.body} ${idea.status}`.toLowerCase().includes(needle);
-      return matchesStatus && matchesQuery;
-    });
-  }, [ideas, query, statusFilter]);
+  const filtered = useMemo(() => filterIdeas(ideas, statusFilter, query), [ideas, query, statusFilter]);
 
-  const selected = ideas.find((idea) => idea.id === selectedId) ?? filtered[0] ?? ideas[0];
+  const selected = pickSelected(ideas, filtered, selectedId);
 
   function addIdea(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const title = draft.title.trim();
-    if (!title) {
+    const idea = createIdea(draft, createId(), Date.now());
+    if (!idea) {
       setNotice("Give the thought a title before placing it in the field.");
       return;
     }
 
-    const idea: Idea = {
-      id: createId(),
-      title,
-      body: draft.body.trim() || "No detail yet. The next question can sharpen it.",
-      status: draft.status,
-      createdAt: Date.now(),
-    };
     setIdeas((current) => [idea, ...current]);
     setSelectedId(idea.id);
     setStatusFilter("All");
-    setDraft({ title: "", body: "", status: "Seed" });
+    setDraft(EMPTY_DRAFT);
     setNotice("Thought placed in the field.");
   }
 
   function removeIdea(id: string) {
-    setIdeas((current) => {
-      const remaining = current.filter((idea) => idea.id !== id);
-      if (selectedId === id) setSelectedId(remaining[0]?.id ?? null);
-      return remaining;
-    });
+    const next = removeFromField(ideas, id, selectedId);
+    setIdeas(next.ideas);
+    setSelectedId(next.selectedId);
     setNotice("Thought removed from this browser.");
   }
 

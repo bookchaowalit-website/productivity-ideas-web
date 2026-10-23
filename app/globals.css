@@ -112,7 +112,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 @media (max-width: 850px) {
   .field-frame { width: min(100% - 40px, 680px); }
   .field-intro { grid-template-columns: minmax(0, 1fr) 130px; gap: 30px; padding: 80px 0 74px; }
-  .field-console { grid-template-columns: 1fr; gap: 58px; }
+  .field-console { grid-template-columns: minmax(0, 1fr); gap: 58px; }
   .capture-bay { padding: 0 0 50px; border-right: 0; border-bottom: 1px solid var(--line); }
 }
 
