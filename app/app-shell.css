@@ -139,7 +139,9 @@
   .as-row { grid-template-columns: minmax(0, 1fr) auto; }
   .as-row .as-plain { grid-column: 2; grid-row: 1 / span 2; }
   .as-row .as-pill { grid-column: 1; justify-self: start; }
-  .as-segmented { width: 100%; }
+  /* Wrap onto a second row rather than squeeze: four choices need ~380px in one row. */
+  .as-segmented-wrap { min-width: 0; width: 100%; }
+  .as-segmented { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
   .as-segmented button { min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .as *, .as *::before, .as *::after { transition: none !important; } }
