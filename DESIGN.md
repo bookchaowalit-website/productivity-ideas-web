@@ -1,3 +1,12 @@
+# Ideas — design
+
+Since 2026-11-14 this app uses the shared App shell (`APP-SHELL.md`): stage lists in the
+sidebar (pills on phones), search, a composer with a Stage segmented control, idea rows with
+stage pills (Seed grey, Shaping amber, Testing green, Parked grey), and remove with undo.
+The earlier "Idea Field" theme below is kept for history.
+
+---
+
 ---
 name: Idea Field
 description: A black-and-white signal instrument for moving loose thoughts one step forward.

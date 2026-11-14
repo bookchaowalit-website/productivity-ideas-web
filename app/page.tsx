@@ -1,165 +1,172 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea as removeFromField, signalBars, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/components/app-shell";
+import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
 
-function createId() {
-  return typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : `idea-${Date.now()}`;
-}
-
-function SignalBars({ seed }: { seed: string }) {
-  const bars = signalBars(seed);
-
-  return (
-    <span className="idea-signal" aria-hidden="true">
-      {bars.map((width, index) => (
-        <i key={`${seed}-${index}`} style={{ width: `${width}px` }} />
-      ))}
-    </span>
-  );
-}
+const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "green", Parked: "grey" };
 
 export default function Home() {
   const [ideas, setIdeas] = useStoredState(STORAGE_KEY, SEED, parseIdeas);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
-  const [selectedId, setSelectedId] = useState<string | null>(SEED[0]?.id ?? null);
+  const [filter, setFilter] = useState<StatusFilter>("All");
+  const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState<IdeaDraft>(EMPTY_DRAFT);
-  const [notice, setNotice] = useState("");
+  const [removed, setRemoved] = useState<{ idea: Idea; beforeId: string | null; viaKeyboard: boolean } | null>(null);
+  const [toastFocused, setToastFocused] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const titleRef = useRef<HTMLInputElement>(null);
+  const newRef = useRef<HTMLButtonElement>(null);
+  const undoRef = useRef<HTMLButtonElement>(null);
+  const wasComposing = useRef(false);
+  const visible = useMemo(() => filterIdeas(ideas, filter, query), [ideas, filter, query]);
+  const countOf = (status: StatusFilter) => (status === "All" ? ideas.length : ideas.filter((idea) => idea.status === status).length);
 
-  const filtered = useMemo(() => filterIdeas(ideas, statusFilter, query), [ideas, query, statusFilter]);
+  // Opening the composer focuses its title; closing it returns focus to New idea (or the title, if
+  // the toast closes while the composer is open).
+  useEffect(() => {
+    if (composing) titleRef.current?.focus();
+    else if (wasComposing.current) newRef.current?.focus();
+    wasComposing.current = composing;
+  }, [composing]);
+  useEffect(() => { if (removed?.viaKeyboard) undoRef.current?.focus(); }, [removed]);
+  // The toast closes after 6 s, but never while it holds focus.
+  useEffect(() => {
+    if (!removed || toastFocused) return;
+    const timer = window.setTimeout(() => setRemoved(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [removed, toastFocused]);
 
-  const selected = pickSelected(ideas, filtered, selectedId);
-
-  function addIdea(event: React.FormEvent<HTMLFormElement>) {
+  function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const idea = createIdea(draft, createId(), Date.now());
-    if (!idea) {
-      setNotice("Give the thought a title before placing it in the field.");
-      return;
-    }
-
+    const idea = createIdea(draft, crypto.randomUUID(), Date.now());
+    if (!idea) return;
     setIdeas((current) => [idea, ...current]);
-    setSelectedId(idea.id);
-    setStatusFilter("All");
+    // Show the new idea: its own list, and no search that might hide it.
+    if (filter !== "All" && filter !== idea.status) setFilter(idea.status);
+    setQuery("");
+    setAnnouncement(`Added “${idea.title}”.`);
     setDraft(EMPTY_DRAFT);
-    setNotice("Thought placed in the field.");
+    setComposing(false);
+  }
+  function remove(idea: Idea, viaKeyboard: boolean) {
+    const index = ideas.findIndex((entry) => entry.id === idea.id);
+    setIdeas((current) => current.filter((entry) => entry.id !== idea.id));
+    setRemoved({ idea, beforeId: ideas[index + 1]?.id ?? null, viaKeyboard });
+    setAnnouncement(`Removed “${idea.title}”. Undo is available for a few seconds.`);
+  }
+  function closeToast() {
+    setRemoved(null);
+    setToastFocused(false);
+    (newRef.current ?? titleRef.current)?.focus();
+  }
+  function undo() {
+    if (!removed) return;
+    const { idea, beforeId } = removed;
+    setIdeas((current) => restoreIdea(current, idea, beforeId));
+    setAnnouncement(`Restored “${idea.title}”.`);
+    closeToast();
   }
 
-  function removeIdea(id: string) {
-    const next = removeFromField(ideas, id, selectedId);
-    setIdeas(next.ideas);
-    setSelectedId(next.selectedId);
-    setNotice("Thought removed from this browser.");
-  }
+  const title = filter === "All" ? "All ideas" : filter;
+  const lists: { value: StatusFilter; tone?: Tone }[] = [{ value: "All" }, ...STATUSES.map((status) => ({ value: status, tone: TONE[status] }))];
 
   return (
-    <main className="idea-field">
-      <div className="field-frame">
-        <header className="field-header">
-          <div className="field-mark">
-            <span className="mark-bars" aria-hidden="true"><i /><i /><i /><i /></span>
-            <span>IDEA / FIELD</span>
-          </div>
-          <p>LOCAL NOTEBOOK · {ideas.length.toString().padStart(2, "0")} THOUGHTS</p>
-        </header>
+    <div className="as">
+      <a className="as-skip" href="#main">Skip to content</a>
+      <AppTop name="Ideas" tagline="Give a loose thought its next move" />
 
-        <section className="field-intro" aria-labelledby="page-title">
-          <div>
-            <h1 id="page-title">Give a loose thought one next move.</h1>
-            <p>A local idea instrument for keeping a question visible long enough to shape it, test it, or deliberately park it.</p>
-          </div>
-          <div className="field-readout">
-            <strong>{filtered.length.toString().padStart(2, "0")}</strong>
-            <span>VISIBLE<br />SIGNALS</span>
-          </div>
-        </section>
+      <div className="as-body">
+        <aside className="as-side" aria-label="Lists">
+          <h2>Lists</h2>
+          <ul className="as-lists">
+            {lists.map(({ value, tone }) => (
+              <ListButton key={value} label={value === "All" ? "All ideas" : value} count={countOf(value)} tone={tone} current={filter === value} onSelect={() => setFilter(value)} />
+            ))}
+          </ul>
+        </aside>
 
-        <section className="field-console" aria-label="Idea field workspace">
-          <div className="capture-bay">
-            <p className="section-label">CAPTURE BAY</p>
-            <h2>Put the rough version here.</h2>
-            <p className="capture-note">No scoring, no fake roadmap. A thought earns its place by getting a useful next sentence.</p>
-            <form onSubmit={addIdea} className="capture-form">
-              <label>
-                <span>Thought title</span>
-                <input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="What keeps returning?" required />
+        <main id="main" className="as-main">
+          <div className="as-head">
+            <div>
+              <h1>{title}</h1>
+              <p aria-live="polite">{visible.length} {visible.length === 1 ? "idea" : "ideas"}{query.trim() ? ` matching “${query.trim()}”` : ""}</p>
+            </div>
+            <div className="as-tools">
+              <label className="as-search">
+                <span className="as-sr">Search ideas</span>
+                <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
               </label>
-              <label>
-                <span>Working note</span>
-                <textarea value={draft.body} onChange={(event) => setDraft((current) => ({ ...current, body: event.target.value }))} placeholder="What might be true?" rows={4} />
-              </label>
-              <label>
-                <span>Current signal</span>
-                <select value={draft.status} onChange={(event) => setDraft((current) => ({ ...current, status: event.target.value as Status }))}>
-                  {STATUSES.map((status) => <option key={status}>{status}</option>)}
-                </select>
-              </label>
-              <button className="place-button" type="submit">Place in field <span aria-hidden="true">↗</span></button>
-            </form>
-            <p className="form-notice" role="status" aria-live="polite">{notice}</p>
+              {composing ? null : <button ref={newRef} type="button" className="as-button" onClick={() => setComposing(true)}><PlusIcon />New idea</button>}
+            </div>
           </div>
 
-          <div className="field-reading">
-            <div className="reading-toolbar">
-              <label className="search-field">
-                <span>SCAN THE FIELD</span>
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search thoughts" />
+          {composing ? (
+            <form className="as-composer" onSubmit={add} aria-label="New idea">
+              <label className="as-field">Idea
+                <input ref={titleRef} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What keeps coming back?" autoComplete="off" />
               </label>
-              <div className="status-filter" role="group" aria-label="Filter thoughts by signal">
-                {(["All", ...STATUSES] as const).map((status) => (
-                  <button key={status} type="button" aria-pressed={statusFilter === status} onClick={() => setStatusFilter(status)}>{status}</button>
-                ))}
+              <label className="as-field">Note
+                <textarea value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} placeholder="What might be true? What would you test first?" />
+              </label>
+              <div className="as-composer-foot">
+                <div className="as-segmented-wrap">
+                  <span id="stage-label">Stage</span>
+                  <div className="as-segmented" role="group" aria-labelledby="stage-label">
+                    {STATUSES.map((status) => (
+                      <button key={status} type="button" aria-pressed={draft.status === status} onClick={() => setDraft({ ...draft, status })}>{status}</button>
+                    ))}
+                  </div>
+                </div>
+                <div className="as-composer-actions">
+                  <button type="button" className="as-plain" onClick={() => { setComposing(false); setDraft(EMPTY_DRAFT); }}>Cancel</button>
+                  <button type="submit" className="as-button" disabled={!draft.title.trim()}>Add</button>
+                </div>
               </div>
+            </form>
+          ) : null}
+
+          {visible.length ? (
+            <ul className="as-list" aria-label={title}>
+              {visible.map((idea) => (
+                <li className="as-row" key={idea.id}>
+                  <div>
+                    <h3>{idea.title}</h3>
+                    <p>{idea.body}</p>
+                    <p className="as-row-meta"><time dateTime={new Date(idea.createdAt).toISOString()}>{formatCreated(idea.createdAt)}</time></p>
+                  </div>
+                  <Pill tone={TONE[idea.status]}>{idea.status}</Pill>
+                  <button type="button" className="as-plain as-danger" aria-label={`Remove ${idea.title}`} onClick={(event) => remove(idea, event.detail === 0)}>Remove</button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="as-list as-empty">
+              {ideas.length === 0 ? <><strong>No ideas yet</strong>Press New idea to write the first one down.</> : <><strong>Nothing here</strong>No idea in this list matches your search.</>}
             </div>
+          )}
 
-            <div className="reading-heading">
-              <p className="section-label">FIELD INDEX</p>
-              <span>{filtered.length} / {ideas.length} SHOWING</span>
-            </div>
-
-            {filtered.length > 0 ? (
-              <ul className="idea-list">
-                {filtered.map((idea) => (
-                  <li key={idea.id}>
-                    <button type="button" className={`idea-row${selected?.id === idea.id ? " is-selected" : ""}`} onClick={() => setSelectedId(idea.id)}>
-                      <span className="idea-row-topline"><span>{idea.status}</span><time dateTime={new Date(idea.createdAt).toISOString()}>{new Date(idea.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</time></span>
-                      <strong>{idea.title}</strong>
-                      <span className="idea-row-bottom"><SignalBars seed={idea.title} /><span>{idea.body}</span></span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="empty-field"><strong>No signal in this range.</strong><span>Clear the scan or place a new thought in the field.</span></div>
-            )}
-
-            {selected && (
-              <article className="selected-reading" aria-labelledby="selected-title">
-                <div className="selected-rule" aria-hidden="true" />
-                <div className="selected-header">
-                  <p className="section-label">CURRENT READING</p>
-                  <button type="button" className="remove-button" onClick={() => removeIdea(selected.id)}>Remove</button>
-                </div>
-                <h2 id="selected-title">{selected.title}</h2>
-                <p>{selected.body}</p>
-                <div className="selected-meta">
-                  <span><b>STATE</b>{selected.status}</span>
-                  <span><b>RECORDED</b>{new Date(selected.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
-                </div>
-              </article>
-            )}
-          </div>
-        </section>
-
-        <footer className="field-footer">
-          <span>IDEA / FIELD · PRIVATE BY DEFAULT</span>
-          <span>State stays in this browser. No account. No pretend intelligence.</span>
-        </footer>
+          <p className="as-note">Saved in this browser only. No account, no scoring.</p>
+        </main>
       </div>
-    </main>
+
+      <p className="as-sr" role="status" aria-live="polite">{announcement}</p>
+      {removed ? (
+        <div
+          className="as-toast"
+          role="group"
+          aria-label="Undo remove"
+          onFocus={() => setToastFocused(true)}
+          onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastFocused(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape") closeToast(); }}
+        >
+          <span>Removed “{removed.idea.title}”</span>
+          <button ref={undoRef} type="button" className="as-plain" onClick={undo}>Undo</button>
+        </div>
+      ) : null}
+
+      <AppFoot source="https://github.com/bookchaowalit-website/productivity-ideas-web" />
+    </div>
   );
 }
