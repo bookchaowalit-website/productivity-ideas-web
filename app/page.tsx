@@ -7,6 +7,12 @@ import { useStoredState } from "@/lib/use-stored-state";
 
 const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "green", Parked: "grey" };
 
+// randomUUID only exists in secure contexts (HTTPS/localhost) and newer browsers.
+function createId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return `idea-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 export default function Home() {
   const [ideas, setIdeas] = useStoredState(STORAGE_KEY, SEED, parseIdeas);
   const [query, setQuery] = useState("");
@@ -40,7 +46,7 @@ export default function Home() {
 
   function add(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const idea = createIdea(draft, crypto.randomUUID(), Date.now());
+    const idea = createIdea(draft, createId(), Date.now());
     if (!idea) return;
     setIdeas((current) => [idea, ...current]);
     // Show the new idea: its own list, and no search that might hide it.

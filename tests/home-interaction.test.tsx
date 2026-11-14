@@ -60,6 +60,19 @@ describe("composer", () => {
     expect(host.textContent).toContain("No detail yet.");
   });
 
+  it("still adds when crypto.randomUUID is missing (plain HTTP, older browsers)", () => {
+    vi.stubGlobal("crypto", {});
+    try {
+      press(button("New idea"));
+      type($<HTMLInputElement>(".as-composer input")!, "No secure context");
+      press(button("Add", $(".as-composer")!));
+      expect(rows()[0]).toBe("No secure context");
+      expect(JSON.parse(localStorage.getItem("idea-field-v2")!)[0].id).toMatch(/^idea-\d+-[a-z0-9]+$/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("Cancel closes without adding and returns focus", () => {
     press(button("New idea"));
     type($<HTMLInputElement>(".as-composer input")!, "Never mind");
