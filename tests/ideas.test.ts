@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_BODY, SEED, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea, signalBars } from "@/lib/ideas";
+import { formatCreated, restoreIdea, EMPTY_BODY, SEED, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea, signalBars } from "@/lib/ideas";
 
 describe("parseIdeas", () => {
   it("returns null for missing, corrupt or non-array data so the sample is used", () => {
@@ -49,5 +49,19 @@ describe("field edits", () => {
     expect(bars.every((w) => w >= 1 && w <= 4)).toBe(true);
     expect(signalBars("Idea")).toEqual(bars);
     expect(signalBars("")).toHaveLength(22);
+  });
+});
+
+describe("App shell helpers", () => {
+  const [a, b, c] = SEED;
+  it("restores a removed idea before its old neighbour even after a new one was added", () => {
+    const fresh = { ...a, id: "new" };
+    expect(restoreIdea([fresh, a, c], b, c.id).map((i) => i.id)).toEqual(["new", a.id, b.id, c.id]);
+    expect(restoreIdea([a], c, "gone").map((i) => i.id)).toEqual([a.id, c.id]);
+    const list = [a, b];
+    expect(restoreIdea(list, a, null)).toBe(list);
+  });
+  it("formats the created date in UTC", () => {
+    expect(formatCreated(Date.parse("2026-08-18"))).toBe("18 Aug 2026");
   });
 });

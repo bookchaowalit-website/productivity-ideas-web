@@ -101,3 +101,15 @@ export function signalBars(seed: string): number[] {
     return 1 + ((code + index * 7) % 4);
   });
 }
+
+/** Undo a removal: put the idea back before the row that followed it, or at the end; never duplicates. */
+export function restoreIdea(ideas: Idea[], idea: Idea, beforeId: string | null): Idea[] {
+  if (ideas.some((entry) => entry.id === idea.id)) return ideas;
+  const at = beforeId ? ideas.findIndex((entry) => entry.id === beforeId) : -1;
+  return at < 0 ? [...ideas, idea] : [...ideas.slice(0, at), idea, ...ideas.slice(at)];
+}
+
+/** "18 Aug 2026" in UTC, so the server and every browser print the same date. */
+export function formatCreated(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
