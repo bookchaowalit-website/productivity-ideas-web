@@ -24,6 +24,7 @@ export default function Home() {
   const [announcement, setAnnouncement] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
   const newRef = useRef<HTMLButtonElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const undoRef = useRef<HTMLButtonElement>(null);
   const wasComposing = useRef(false);
   const visible = useMemo(() => filterIdeas(ideas, filter, query), [ideas, filter, query]);
@@ -55,6 +56,10 @@ export default function Home() {
     setAnnouncement(`Added “${idea.title}”.`);
     setDraft(EMPTY_DRAFT);
     setComposing(false);
+  }
+  function clearSearch() {
+    setQuery("");
+    searchRef.current?.focus();
   }
   function remove(idea: Idea, viaKeyboard: boolean) {
     const index = ideas.findIndex((entry) => entry.id === idea.id);
@@ -102,7 +107,7 @@ export default function Home() {
             <div className="as-tools">
               <label className="as-search">
                 <span className="as-sr">Search ideas</span>
-                <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
+                <input ref={searchRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
               </label>
               {composing ? null : <button ref={newRef} type="button" className="as-button" onClick={() => setComposing(true)}><PlusIcon />New idea</button>}
             </div>
@@ -149,7 +154,17 @@ export default function Home() {
             </ul>
           ) : (
             <div className="as-list as-empty">
-              {ideas.length === 0 ? <><strong>No ideas yet</strong>Press New idea to write the first one down.</> : <><strong>Nothing here</strong>No idea in this list matches your search.</>}
+              {query.trim() ? (
+                <>
+                  <strong>Nothing matches</strong>
+                  No idea in {filter === "All" ? "your lists" : title} mentions “{query.trim()}”.
+                  <div style={{ marginTop: 8 }}><button type="button" className="as-plain" onClick={clearSearch}>Clear search</button></div>
+                </>
+              ) : ideas.length === 0 ? (
+                <><strong>No ideas yet</strong>Press New idea to write the first one down.</>
+              ) : (
+                <><strong>This list is empty</strong>No ideas are at the {title} stage yet. Press New idea and pick {title} as the stage to add one.</>
+              )}
             </div>
           )}
 

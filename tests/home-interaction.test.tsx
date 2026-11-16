@@ -88,8 +88,19 @@ describe("lists and search", () => {
     expect(rows()).toEqual(["Make the last useful view easy to return to"]);
     press(button("All ideas", $(".as-side")!));
     type($<HTMLInputElement>(".as-search input")!, "zzz");
-    expect(host.textContent).toContain("Nothing here");
-    type($<HTMLInputElement>(".as-search input")!, "");
+    expect(host.textContent).toContain("Nothing matches");
+    expect(host.textContent).toContain("mentions “zzz”");
+    const search = $<HTMLInputElement>(".as-search input")!;
+    press(button("Clear search"));
+    expect(search.value).toBe("");
+    expect(document.activeElement).toBe(search);
+    expect(rows()).toHaveLength(3);
+    // An empty list without a search says the list is empty, never "matches your search".
+    press(button("Parked", $(".as-side")!));
+    expect(host.textContent).toContain("This list is empty");
+    expect(host.textContent).not.toContain("search");
+    expect(host.querySelector(".as-empty button")).toBeNull();
+    press(button("All ideas", $(".as-side")!));
     for (const title of ["Make the last useful view easy to return to", "Export a decision trail without opening a spreadsheet", "A quieter first run for tools with many possibilities"]) press($(`[aria-label="Remove ${title}"]`)!, 1);
     expect(host.textContent).toContain("No ideas yet");
   });
