@@ -26,8 +26,8 @@ A portfolio visitor (or the owner) who wants a quiet place to park a thought and
 
 - No visitor submissions, upvoting or community-driven prioritisation (claims removed from the portfolio card in the
   2026-10 review). The page says "No scoring, no fake roadmap".
-- No editing of an existing thought's text or signal, no sync or export. No product analytics beyond Vercel
-  Analytics.
+- No editing of an existing thought's text or signal, no sync or export. No analytics or tracking scripts (removed
+  2026-11-17; no consent banner needed).
 
 ## Live URL and deploy state
 
