@@ -5,6 +5,10 @@ import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/compon
 import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
 
+type RemovedEntry = { idea: Idea; beforeId: string | null };
+type RemovedBatch = { items: RemovedEntry[]; viaKeyboard: boolean };
+const removedLabel = (items: RemovedEntry[]) => (items.length === 1 ? `Removed “${items[0].idea.title}”` : `Removed ${items.length} ideas`);
+
 const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "green", Parked: "grey" };
 
 // randomUUID only exists in secure contexts (HTTPS/localhost) and newer browsers.
@@ -19,7 +23,11 @@ export default function Home() {
   const [filter, setFilter] = useState<StatusFilter>("All");
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState<IdeaDraft>(EMPTY_DRAFT);
-  const [removed, setRemoved] = useState<{ idea: Idea; beforeId: string | null; viaKeyboard: boolean } | null>(null);
+  // Every removal still inside the Undo window: one Undo puts them all back where they were.
+  const [removed, setRemovedState] = useState<RemovedBatch | null>(null);
+  // The latest batch, so two removals before a re-render still both land in it.
+  const removedRef = useRef<RemovedBatch | null>(null);
+  const setRemoved = (batch: RemovedBatch | null) => { removedRef.current = batch; setRemovedState(batch); };
   const [toastFocused, setToastFocused] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const titleRef = useRef<HTMLInputElement>(null);
@@ -38,10 +46,10 @@ export default function Home() {
     wasComposing.current = composing;
   }, [composing]);
   useEffect(() => { if (removed?.viaKeyboard) undoRef.current?.focus(); }, [removed]);
-  // The toast closes after 6 s, but never while it holds focus.
+  // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus.
   useEffect(() => {
     if (!removed || toastFocused) return;
-    const timer = window.setTimeout(() => setRemoved(null), 6000);
+    const timer = window.setTimeout(() => { removedRef.current = null; setRemovedState(null); }, 6000);
     return () => window.clearTimeout(timer);
   }, [removed, toastFocused]);
 
@@ -62,10 +70,18 @@ export default function Home() {
     searchRef.current?.focus();
   }
   function remove(idea: Idea, viaKeyboard: boolean) {
-    const index = ideas.findIndex((entry) => entry.id === idea.id);
-    setIdeas((current) => current.filter((entry) => entry.id !== idea.id));
-    setRemoved({ idea, beforeId: ideas[index + 1]?.id ?? null, viaKeyboard });
-    setAnnouncement(`Removed “${idea.title}”. Undo is available for a few seconds.`);
+    // Read the idea and its neighbour from the stored list inside the same update, not from this render.
+    let entry: RemovedEntry | undefined;
+    setIdeas((current) => {
+      const index = current.findIndex((item) => item.id === idea.id);
+      if (index < 0) return current;
+      entry = { idea: current[index], beforeId: current[index + 1]?.id ?? null };
+      return current.filter((item) => item.id !== idea.id);
+    });
+    if (!entry) return;
+    const items = [...(removedRef.current?.items ?? []), entry];
+    setRemoved({ items, viaKeyboard });
+    setAnnouncement(`${removedLabel(items)}. Undo is available for a few seconds.`);
   }
   function closeToast() {
     setRemoved(null);
@@ -73,10 +89,11 @@ export default function Home() {
     (newRef.current ?? titleRef.current)?.focus();
   }
   function undo() {
-    if (!removed) return;
-    const { idea, beforeId } = removed;
-    setIdeas((current) => restoreIdea(current, idea, beforeId));
-    setAnnouncement(`Restored “${idea.title}”.`);
+    const items = removedRef.current?.items;
+    if (!items?.length) return;
+    // Latest removal first, so each idea goes back before the row that followed it at the time.
+    setIdeas((current) => items.reduceRight((list, { idea, beforeId }) => restoreIdea(list, idea, beforeId), current));
+    setAnnouncement(items.length === 1 ? `Restored “${items[0].idea.title}”.` : `Restored ${items.length} ideas.`);
     closeToast();
   }
 
@@ -182,8 +199,8 @@ export default function Home() {
           onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setToastFocused(false); }}
           onKeyDown={(event) => { if (event.key === "Escape") closeToast(); }}
         >
-          <span>Removed “{removed.idea.title}”</span>
-          <button ref={undoRef} type="button" className="as-plain" onClick={undo}>Undo</button>
+          <span>{removedLabel(removed.items)}</span>
+          <button ref={undoRef} type="button" className="as-plain" onClick={undo} aria-label={removed.items.length === 1 ? "Undo remove" : `Undo remove of ${removed.items.length} ideas`}>Undo</button>
         </div>
       ) : null}
 

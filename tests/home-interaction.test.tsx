@@ -134,4 +134,33 @@ describe("remove and undo", () => {
     press(button("Undo"));
     expect(document.activeElement).toBe($(".as-composer input"));
   });
+
+  it("removals inside the Undo window form one batch; Undo restores all in their places", () => {
+    vi.useFakeTimers();
+    const before = rows();
+    press($(`[aria-label="Remove ${before[1]}"]`)!, 0);
+    act(() => { vi.advanceTimersByTime(4000); });
+    press($(`[aria-label="Remove ${before[0]}"]`)!, 0);
+    expect(rows()).toEqual(before.slice(2));
+    expect($(".as-toast span")!.textContent).toBe("Removed 2 ideas");
+    expect(host.querySelector('[role="status"]')!.textContent).toContain("Removed 2 ideas");
+    const undo = button("Undo");
+    expect(undo.getAttribute("aria-label")).toBe("Undo remove of 2 ideas");
+    // The second removal restarted the timer: 4 s + 4 s after the first, it is still open.
+    act(() => { button("New idea").focus(); });
+    act(() => { vi.advanceTimersByTime(4000); });
+    expect($(".as-toast")).not.toBeNull();
+    press(button("Undo"));
+    expect(rows()).toEqual(before);
+    expect(host.querySelector('[role="status"]')!.textContent).toBe("Restored 2 ideas.");
+    act(() => { vi.advanceTimersByTime(6000); });
+    expect($(".as-toast")).toBeNull();
+  });
+
+  it("one removal says its title, and Undo's name starts with Undo", () => {
+    const first = rows()[0];
+    press($(`[aria-label="Remove ${first}"]`)!, 0);
+    expect($(".as-toast span")!.textContent).toBe(`Removed “${first}”`);
+    expect(button("Undo").getAttribute("aria-label")).toBe("Undo remove");
+  });
 });
