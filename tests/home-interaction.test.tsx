@@ -312,3 +312,26 @@ describe("stage control in the normal themes", () => {
     }
   });
 });
+
+describe("Undo toast keeps focused controls clear", () => {
+  it("reserves the toast's height at the bottom and in scroll-padding while it shows", async () => {
+    const { readFileSync } = await import("node:fs");
+    const html = document.documentElement;
+    const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(52);
+    try {
+      expect(html.style.getPropertyValue("--as-toast-space")).toBe("");
+      press(host.querySelector(".as-row .as-danger")!, 0);
+      expect($(".as-toast")).not.toBeNull();
+      // 52px toast + its 24px offset + an 8px gap.
+      expect(html.style.getPropertyValue("--as-toast-space")).toBe("84px");
+      act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+      expect($(".as-toast")).toBeNull();
+      expect(html.style.getPropertyValue("--as-toast-space")).toBe("");
+    } finally {
+      height.mockRestore();
+    }
+    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8");
+    expect(css).toContain("html { scroll-padding-top: 64px; scroll-padding-bottom: calc(16px + var(--as-toast-space, 0px)); }");
+    expect(css).toContain(".as { padding-bottom: var(--as-toast-space, 0px); }");
+  });
+});

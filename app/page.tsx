@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/components/app-shell";
 import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
@@ -73,6 +73,7 @@ export default function Home() {
   const newRef = useRef<HTMLButtonElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const undoRef = useRef<HTMLButtonElement>(null);
+  const toastRef = useRef<HTMLDivElement>(null);
   const wasComposing = useRef(false);
   const visible = useMemo(() => filterIdeas(ideas, filter, query), [ideas, filter, query]);
   const countOf = (status: StatusFilter) => (status === "All" ? ideas.length : ideas.filter((idea) => idea.status === status).length);
@@ -96,6 +97,19 @@ export default function Home() {
     const row = ids.map((id) => rows.find((entry) => entry.dataset.idea === id)).find(Boolean);
     (row?.querySelector<HTMLButtonElement>(".as-danger") ?? newRef.current ?? titleRef.current)?.focus();
   }, [removed, ideas]);
+  // While the toast shows, reserve its height (plus its 24px offset and a gap) at the bottom of the page and in
+  // scroll-padding, so a control focused behind it (Tab / Shift+Tab from Undo) scrolls clear instead of staying hidden.
+  const toastShown = removed !== null;
+  useLayoutEffect(() => {
+    const toast = toastRef.current;
+    if (!toastShown || !toast) return;
+    const rootStyle = document.documentElement.style;
+    const reserve = () => rootStyle.setProperty("--as-toast-space", `${toast.offsetHeight + 32}px`);
+    reserve();
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(reserve) : null;
+    observer?.observe(toast);
+    return () => { observer?.disconnect(); rootStyle.removeProperty("--as-toast-space"); };
+  }, [toastShown]);
   // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus.
   useEffect(() => {
     if (!removed || toastFocused) return;
@@ -248,6 +262,7 @@ export default function Home() {
       <p className="as-sr" role="status" aria-live="polite">{announcement}</p>
       {removed ? (
         <div
+          ref={toastRef}
           className="as-toast"
           role="group"
           aria-label="Undo remove"
