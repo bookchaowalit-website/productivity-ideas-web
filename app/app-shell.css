@@ -233,3 +233,6 @@
 .as-prose ol { margin: 12px 0; padding-left: 24px; list-style: decimal; }
 .as-prose li { margin: 6px 0; }
 .as-empty a { color: var(--as-accent); }
+
+/* The top bar is sticky: keep skip-link targets and keyboard-focused controls clear of it when the page scrolls to them. */
+html { scroll-padding-top: 64px; scroll-padding-bottom: 16px; }
