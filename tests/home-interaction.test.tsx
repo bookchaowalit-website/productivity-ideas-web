@@ -181,3 +181,62 @@ describe("remove and undo", () => {
     expect(button("Undo").getAttribute("aria-label")).toBe("Undo remove");
   });
 });
+
+describe("row note preview", () => {
+  it("a note with line breaks shows one line, and Show more / Show less toggle the full note", () => {
+    act(() => { button("New idea").click(); });
+    type($<HTMLInputElement>(".as-composer input")!, "Long one");
+    type($<HTMLTextAreaElement>(".as-composer textarea")!, "First line\nSecond line\nThird line");
+    act(() => { button("Add").click(); });
+    const row = $('.as-row[data-idea]')!;
+    const detail = row.querySelector<HTMLElement>(".as-row-detail")!;
+    expect(detail.textContent).toBe("First line\nSecond line\nThird line");
+    expect(detail.dataset.expanded).toBeUndefined();
+    const more = button("Show more", row);
+    expect(more.getAttribute("aria-expanded")).toBe("false");
+    expect(more.getAttribute("aria-controls")).toBe(detail.id);
+    act(() => { more.click(); });
+    expect(detail.dataset.expanded).toBe("true");
+    expect(more.getAttribute("aria-expanded")).toBe("true");
+    expect(more.textContent).toBe("Show less");
+    act(() => { more.click(); });
+    expect(detail.dataset.expanded).toBeUndefined();
+    expect(more.textContent).toBe("Show more");
+  });
+
+  it("a short single-line note has no toggle", () => {
+    expect(host.querySelectorAll(".as-row-more")).toHaveLength(0);
+    expect(host.querySelectorAll(".as-row-detail").length).toBeGreaterThan(0);
+  });
+
+  it("a one-line note that is clipped at the row width gets Show more (measured on resize)", () => {
+    act(() => root.unmount());
+    const callbacks: (() => void)[] = [];
+    vi.stubGlobal("ResizeObserver", class { constructor(cb: () => void) { callbacks.push(cb); } observe() {} disconnect() {} });
+    const width = vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(500);
+    const client = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(200);
+    try {
+      root = createRoot(host);
+      act(() => root.render(<Home />));
+      act(() => { callbacks.forEach((cb) => cb()); });
+      const first = $('.as-row[data-idea]')!;
+      const more = button("Show more", first);
+      act(() => { more.click(); });
+      // Expanded, nothing is clipped; but the measurement is skipped so Show less stays.
+      width.mockReturnValue(200);
+      act(() => { callbacks.forEach((cb) => cb()); });
+      expect(button("Show less", first)).toBeTruthy();
+    } finally {
+      width.mockRestore();
+      client.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("the CSS keeps the row note to one line until expanded", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8");
+    expect(css).toContain(".as-row .as-row-detail { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }");
+    expect(css).toContain('.as-row .as-row-detail[data-expanded="true"] { white-space: pre-line; }');
+  });
+});

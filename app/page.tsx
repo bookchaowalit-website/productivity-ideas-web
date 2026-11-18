@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/components/app-shell";
 import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
@@ -16,6 +16,33 @@ const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "g
 function createId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return `idea-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// The row shows one line of the note (App shell rule); a long note gets Show more to read it in full.
+function IdeaNote({ body }: { body: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const id = useId();
+  const [expanded, setExpanded] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    // Measure only while collapsed: expanded, nothing is clipped, but Show less must stay.
+    const observer = new ResizeObserver(() => { if (el.dataset.expanded !== "true") setClipped(el.scrollWidth > el.clientWidth); });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [body]);
+  const long = expanded || clipped || body.includes("\n");
+  return (
+    <>
+      <p ref={ref} id={id} className="as-row-detail" data-expanded={expanded ? "true" : undefined}>{body}</p>
+      {long ? (
+        <button type="button" className="as-plain as-row-more" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded(!expanded)}>
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      ) : null}
+    </>
+  );
 }
 
 export default function Home() {
@@ -179,7 +206,7 @@ export default function Home() {
                 <li className="as-row" key={idea.id} data-idea={idea.id}>
                   <div>
                     <h3>{idea.title}</h3>
-                    <p>{idea.body}</p>
+                    <IdeaNote body={idea.body} />
                     <p className="as-row-meta"><time dateTime={new Date(idea.createdAt).toISOString()}>{formatCreated(idea.createdAt)}</time></p>
                   </div>
                   <Pill tone={TONE[idea.status]}>{idea.status}</Pill>

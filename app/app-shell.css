@@ -113,6 +113,10 @@
 .as-row + .as-row { border-top: 1px solid var(--as-line); }
 .as-row h3 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
 .as-row p { margin: 2px 0 0; color: var(--as-muted); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+/* One line of detail per row; Show more opens the full note (line breaks kept). */
+.as-row .as-row-detail { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.as-row .as-row-detail[data-expanded="true"] { white-space: pre-line; }
+.as-row .as-row-more { min-height: 44px; padding: 0; font-size: 14px; }
 .as-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 0 10px; border-radius: 980px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .as-pill[data-tone="green"] { color: var(--as-green); background: var(--as-green-bg); }
 .as-pill[data-tone="amber"] { color: var(--as-amber); background: var(--as-amber-bg); }
