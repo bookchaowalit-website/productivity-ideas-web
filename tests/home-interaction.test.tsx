@@ -289,3 +289,23 @@ describe("stage control in forced colors", () => {
     expect(block).toContain(".as-segmented button { border: 1px solid ButtonText; }");
   });
 });
+
+describe("stage control in the normal themes", () => {
+  it("the chosen stage has a 2px --as-fg ring at 3:1 or more against the track and its fill, light and dark", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8");
+    expect(css).toContain('.as-segmented button[aria-pressed="true"] { background: var(--as-surface); font-weight: 600; box-shadow: inset 0 0 0 2px var(--as-fg), 0 1px 3px rgb(0 0 0 / 12%); }');
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const dark = css.slice(css.indexOf("@media (prefers-color-scheme: dark)"));
+    const token = (source: string, name: string) => source.match(new RegExp(`--as-${name}:\\s*(#[0-9a-fA-F]{6})`))![1];
+    for (const theme of [css, dark]) {
+      const fg = token(theme, "fg");
+      expect(ratio(fg, token(theme, "selected"))).toBeGreaterThanOrEqual(3);
+      expect(ratio(fg, token(theme, "surface"))).toBeGreaterThanOrEqual(3);
+    }
+  });
+});

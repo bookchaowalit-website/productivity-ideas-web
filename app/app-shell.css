@@ -104,7 +104,9 @@
 .as-composer-actions { display: flex; gap: 8px; }
 .as-segmented { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 2px; border-radius: 12px; background: var(--as-selected); }
 .as-segmented button { min-height: 44px; min-width: 88px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; font-size: 14px; cursor: pointer; }
-.as-segmented button[aria-pressed="true"] { background: var(--as-surface); font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 12%); }
+/* The chosen stage needs a 3:1 edge: the white fill alone is 1.22:1 on the track. A 2px --as-fg ring
+   measures 13.8:1 on the track / 16.8:1 on its fill (light) and 12.8:1 / 15.6:1 (dark). */
+.as-segmented button[aria-pressed="true"] { background: var(--as-surface); font-weight: 600; box-shadow: inset 0 0 0 2px var(--as-fg), 0 1px 3px rgb(0 0 0 / 12%); }
 .as-segmented-wrap { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
 /* High Contrast / forced colors drops the background and shadow that mark the chosen stage: use
    the system selection colours and a visible edge instead. */
