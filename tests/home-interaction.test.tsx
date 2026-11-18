@@ -279,7 +279,8 @@ describe("row note preview after web fonts load", () => {
 describe("stage control in forced colors", () => {
   it("marks the chosen stage with Highlight colours and an edge, after the normal rules", async () => {
     const { readFileSync } = await import("node:fs");
-    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8");
+    // Normalise CRLF checkouts (Windows autocrlf) before slicing the block.
+    const css = readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8").replace(/\r\n/g, "\n");
     const normal = css.indexOf('.as-segmented button[aria-pressed="true"] { background: var(--as-surface)');
     const forced = css.indexOf("@media (forced-colors: active)");
     expect(normal).toBeGreaterThan(-1);
@@ -287,6 +288,8 @@ describe("stage control in forced colors", () => {
     const block = css.slice(forced, css.indexOf("}\n}", forced) + 3);
     expect(block).toContain('.as-segmented button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; border: 2px solid Highlight; }');
     expect(block).toContain(".as-segmented button { border: 1px solid ButtonText; }");
+    // Its focus ring uses a system colour, distinct from the Highlight fill.
+    expect(block).toContain('.as-segmented button[aria-pressed="true"]:focus-visible { outline-color: CanvasText; }');
   });
 });
 

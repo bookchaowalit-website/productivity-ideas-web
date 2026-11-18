@@ -113,6 +113,9 @@
 @media (forced-colors: active) {
   .as-segmented button { border: 1px solid ButtonText; }
   .as-segmented button[aria-pressed="true"] { forced-color-adjust: none; background: Highlight; color: HighlightText; border: 2px solid Highlight; }
+  /* forced-color-adjust: none keeps the brand focus blue, which can vanish on the user's Canvas; the
+     ring sits outside the Highlight fill (outline-offset), so the system text colour stands out. */
+  .as-segmented button[aria-pressed="true"]:focus-visible { outline-color: CanvasText; }
 }
 
 /* Rows */
