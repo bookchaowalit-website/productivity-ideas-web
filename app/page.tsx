@@ -26,11 +26,22 @@ function IdeaNote({ body }: { body: string }) {
   const [clipped, setClipped] = useState(false);
   useEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver !== "function") return;
+    if (!el) return;
     // Measure only while collapsed: expanded, nothing is clipped, but Show less must stay.
-    const observer = new ResizeObserver(() => { if (el.dataset.expanded !== "true") setClipped(el.scrollWidth > el.clientWidth); });
-    observer.observe(el);
-    return () => observer.disconnect();
+    const measure = () => { if (el.dataset.expanded !== "true") setClipped(el.scrollWidth > el.clientWidth); };
+    // Re-measure when the row resizes, and when web fonts arrive: a note that fit in the fallback font
+    // can overflow in Geist while the box keeps its size (ResizeObserver alone would miss it).
+    const observer = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    observer?.observe(el);
+    const fonts = typeof document !== "undefined" ? document.fonts : undefined;
+    let live = true;
+    fonts?.ready?.then(() => { if (live) measure(); });
+    fonts?.addEventListener?.("loadingdone", measure);
+    return () => {
+      live = false;
+      observer?.disconnect();
+      fonts?.removeEventListener?.("loadingdone", measure);
+    };
   }, [body]);
   const long = expanded || clipped || body.includes("\n");
   return (

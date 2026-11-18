@@ -240,3 +240,38 @@ describe("row note preview", () => {
     expect(css).toContain('.as-row .as-row-detail[data-expanded="true"] { white-space: pre-line; }');
   });
 });
+
+describe("row note preview after web fonts load", () => {
+  it("re-measures on document.fonts.ready and on loadingdone, so a note clipped by the late font gets Show more", async () => {
+    act(() => root.unmount());
+    const listeners: (() => void)[] = [];
+    let resolveReady: () => void = () => {};
+    const ready = new Promise<void>((resolve) => { resolveReady = resolve; });
+    const fonts = { ready, addEventListener: (_: string, cb: () => void) => listeners.push(cb), removeEventListener: vi.fn() };
+    const original = Object.getOwnPropertyDescriptor(document, "fonts");
+    Object.defineProperty(document, "fonts", { configurable: true, value: fonts });
+    // No ResizeObserver: only the font hooks can measure.
+    vi.stubGlobal("ResizeObserver", undefined);
+    const width = vi.spyOn(HTMLElement.prototype, "scrollWidth", "get").mockReturnValue(100);
+    const client = vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(200);
+    try {
+      root = createRoot(host);
+      act(() => root.render(<Home />));
+      await act(async () => { resolveReady(); await ready; });
+      expect(host.querySelectorAll(".as-row-more")).toHaveLength(0);
+      // The web font lands and the text now overflows the same box.
+      width.mockReturnValue(500);
+      act(() => { listeners.forEach((cb) => cb()); });
+      expect(host.querySelectorAll(".as-row-more").length).toBeGreaterThan(0);
+      act(() => root.unmount());
+      expect(fonts.removeEventListener).toHaveBeenCalled();
+      root = createRoot(host);
+    } finally {
+      width.mockRestore();
+      client.mockRestore();
+      vi.unstubAllGlobals();
+      if (original) Object.defineProperty(document, "fonts", original);
+      else delete (document as { fonts?: unknown }).fonts;
+    }
+  });
+});
