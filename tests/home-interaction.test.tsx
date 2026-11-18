@@ -107,11 +107,28 @@ describe("lists and search", () => {
 });
 
 describe("remove and undo", () => {
-  it("keyboard removal focuses Undo; Undo restores in place and focuses New idea", () => {
+  it("keyboard removal focuses Undo; Undo restores in place and focuses the restored row", () => {
     press($('[aria-label="Remove Export a decision trail without opening a spreadsheet"]')!, 0);
     expect(document.activeElement?.textContent).toBe("Undo");
     press(button("Undo"));
     expect(rows()[1]).toBe("Export a decision trail without opening a spreadsheet");
+    expect(document.activeElement).toBe($('[aria-label="Remove Export a decision trail without opening a spreadsheet"]'));
+  });
+
+  it("Escape puts focus on the row after the removed one, else the one before, else New idea", () => {
+    const before = rows();
+    press($(`[aria-label="Remove ${before[1]}"]`)!, 0);
+    act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    expect(document.activeElement).toBe($(`[aria-label="Remove ${before[2]}"]`));
+    const last = rows().at(-1)!;
+    const prev = rows().at(-2)!;
+    press($(`[aria-label="Remove ${last}"]`)!, 0);
+    act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+    expect(document.activeElement).toBe($(`[aria-label="Remove ${prev}"]`));
+    // Nothing left to land on: New idea.
+    for (const title of rows()) press($(`[aria-label="Remove ${title}"]`)!, 0);
+    expect(rows()).toHaveLength(0);
+    act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
     expect(document.activeElement?.textContent).toContain("New idea");
   });
 
@@ -128,10 +145,10 @@ describe("remove and undo", () => {
     expect($(".as-toast")).toBeNull();
   });
 
-  it("closing the toast while the composer is open focuses the composer", () => {
-    press($('[aria-label="Remove Export a decision trail without opening a spreadsheet"]')!, 0);
+  it("dismissing the toast with no row left while the composer is open focuses the composer", () => {
     press(button("New idea"));
-    press(button("Undo"));
+    for (const title of rows()) press($(`[aria-label="Remove ${title}"]`)!, 0);
+    act(() => { $(".as-toast")!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
     expect(document.activeElement).toBe($(".as-composer input"));
   });
 

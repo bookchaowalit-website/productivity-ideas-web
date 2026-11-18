@@ -5,7 +5,8 @@ import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/compon
 import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
 
-type RemovedEntry = { idea: Idea; beforeId: string | null };
+// nextShown / prevShown: the rows shown around it when it was removed, for putting focus back nearby.
+type RemovedEntry = { idea: Idea; beforeId: string | null; nextShown?: string; prevShown?: string };
 type RemovedBatch = { items: RemovedEntry[]; viaKeyboard: boolean };
 const removedLabel = (items: RemovedEntry[]) => (items.length === 1 ? `Removed “${items[0].idea.title}”` : `Removed ${items.length} ideas`);
 
@@ -46,6 +47,17 @@ export default function Home() {
     wasComposing.current = composing;
   }, [composing]);
   useEffect(() => { if (removed?.viaKeyboard) undoRef.current?.focus(); }, [removed]);
+  // When the toast closes, focus goes back near the removed row (once the list has re-rendered):
+  // the first of these rows still shown, else New idea (or the composer's title when it is open).
+  const focusRowsNext = useRef<string[] | null>(null);
+  useEffect(() => {
+    const ids = focusRowsNext.current;
+    if (removed || !ids) return;
+    focusRowsNext.current = null;
+    const rows = [...document.querySelectorAll<HTMLElement>(".as-row[data-idea]")];
+    const row = ids.map((id) => rows.find((entry) => entry.dataset.idea === id)).find(Boolean);
+    (row?.querySelector<HTMLButtonElement>(".as-danger") ?? newRef.current ?? titleRef.current)?.focus();
+  }, [removed, ideas]);
   // The toast closes 6 s after the latest removal (each removal restarts it), but never while it holds focus.
   useEffect(() => {
     if (!removed || toastFocused) return;
@@ -79,14 +91,19 @@ export default function Home() {
       return current.filter((item) => item.id !== idea.id);
     });
     if (!entry) return;
+    const shownAt = visible.findIndex((item) => item.id === idea.id);
+    entry.nextShown = visible[shownAt + 1]?.id;
+    entry.prevShown = shownAt > 0 ? visible[shownAt - 1].id : undefined;
     const items = [...(removedRef.current?.items ?? []), entry];
     setRemoved({ items, viaKeyboard });
     setAnnouncement(`${removedLabel(items)}. Undo is available for a few seconds.`);
   }
-  function closeToast() {
+  function closeToast(focusIds?: string[]) {
+    const last = removedRef.current?.items.at(-1);
+    // Dismissed: the row after the removed one, else the one before it.
+    focusRowsNext.current = focusIds ?? [last?.nextShown, last?.prevShown].filter((id): id is string => Boolean(id));
     setRemoved(null);
     setToastFocused(false);
-    (newRef.current ?? titleRef.current)?.focus();
   }
   function undo() {
     const items = removedRef.current?.items;
@@ -94,7 +111,8 @@ export default function Home() {
     // Latest removal first, so each idea goes back before the row that followed it at the time.
     setIdeas((current) => items.reduceRight((list, { idea, beforeId }) => restoreIdea(list, idea, beforeId), current));
     setAnnouncement(items.length === 1 ? `Restored “${items[0].idea.title}”.` : `Restored ${items.length} ideas.`);
-    closeToast();
+    // Undone: back to the restored row (the latest one, where the user was last).
+    closeToast([items[items.length - 1].idea.id]);
   }
 
   const title = filter === "All" ? "All ideas" : filter;
@@ -158,7 +176,7 @@ export default function Home() {
           {visible.length ? (
             <ul className="as-list" aria-label={title}>
               {visible.map((idea) => (
-                <li className="as-row" key={idea.id}>
+                <li className="as-row" key={idea.id} data-idea={idea.id}>
                   <div>
                     <h3>{idea.title}</h3>
                     <p>{idea.body}</p>
