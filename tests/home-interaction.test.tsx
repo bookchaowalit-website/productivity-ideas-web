@@ -335,3 +335,40 @@ describe("Undo toast keeps focused controls clear", () => {
     expect(css).toContain(".as { padding-bottom: var(--as-toast-space, 0px); }");
   });
 });
+
+// 2026-11-18 review round 2.
+describe("review round 2", () => {
+  const css = () => import("node:fs").then(({ readFileSync }) => readFileSync(`${process.cwd()}/app/app-shell.css`, "utf8").replace(/\r\n/g, "\n"));
+
+  it("draws Parked as an outlined pill and hollow dot, never the same as Seed's grey", async () => {
+    press(button("New idea"));
+    type($<HTMLInputElement>(".as-composer input")!, "Later maybe");
+    press([...host.querySelectorAll(".as-composer .as-segmented button")].find((b) => b.textContent === "Parked")!);
+    press(button("Add"));
+    const pill = [...host.querySelectorAll(".as-row .as-pill")].find((p) => p.textContent === "Parked")!;
+    expect(pill.getAttribute("data-tone")).toBe("outline");
+    expect(host.querySelector('.as-side .as-dot[data-tone="outline"]')).not.toBeNull();
+    const text = await css();
+    expect(text).toContain('.as-pill[data-tone="outline"] { color: var(--as-grey); background: transparent; border: 1px solid var(--as-field-line); }');
+  });
+
+  it("says in the composer, next to Add, that ideas stay in this browser", () => {
+    press(button("New idea"));
+    expect($(".as-composer .as-composer-actions .as-composer-note")!.textContent).toBe("Saved in this browser only.");
+  });
+
+  it("keeps Remove quiet until hover or focus, then red", async () => {
+    const text = await css();
+    expect(text).toContain(".as-plain.as-danger { color: var(--as-muted); }");
+    expect(text).toContain(".as-plain.as-danger:hover, .as-plain.as-danger:focus-visible { color: var(--as-danger); }");
+  });
+
+  it("phones: list pills wrap, and Search shares a row with a 44px New idea button that keeps its name", async () => {
+    const text = await css();
+    const phone = text.slice(text.indexOf("@media (max-width: 760px) {"));
+    expect(phone).toContain(".as-lists { display: flex; flex-wrap: wrap; gap: 6px; }");
+    expect(phone).not.toContain("scrollbar-width: none");
+    expect(phone).toContain(".as-tools .as-button { flex: none; width: 44px; padding: 0; }");
+    expect(button("New idea").textContent).toBe("New idea");
+  });
+});

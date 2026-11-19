@@ -10,7 +10,8 @@ type RemovedEntry = { idea: Idea; beforeId: string | null; nextShown?: string; p
 type RemovedBatch = { items: RemovedEntry[]; viaKeyboard: boolean };
 const removedLabel = (items: RemovedEntry[]) => (items.length === 1 ? `Removed “${items[0].idea.title}”` : `Removed ${items.length} ideas`);
 
-const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "green", Parked: "grey" };
+// Parked is outlined (hollow dot, bordered pill) so it never looks the same as Seed's filled grey.
+const TONE: Record<Status, Tone> = { Seed: "grey", Shaping: "amber", Testing: "green", Parked: "outline" };
 
 // randomUUID only exists in secure contexts (HTTPS/localhost) and newer browsers.
 function createId(): string {
@@ -196,7 +197,7 @@ export default function Home() {
                 <span className="as-sr">Search ideas</span>
                 <input ref={searchRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
               </label>
-              {composing ? null : <button ref={newRef} type="button" className="as-button" onClick={() => setComposing(true)}><PlusIcon />New idea</button>}
+              {composing ? null : <button ref={newRef} type="button" className="as-button" onClick={() => setComposing(true)}><PlusIcon /><span className="as-button-text">New idea</span></button>}
             </div>
           </div>
 
@@ -218,6 +219,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="as-composer-actions">
+                  <p className="as-composer-note">Saved in this browser only.</p>
                   <button type="button" className="as-plain" onClick={() => { setComposing(false); setDraft(EMPTY_DRAFT); }}>Cancel</button>
                   <button type="submit" className="as-button" disabled={!draft.title.trim()}>Add</button>
                 </div>
