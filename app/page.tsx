@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AppFoot, AppTop, ListButton, Pill, PlusIcon, type Tone } from "@/components/app-shell";
-import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
+import { EMPTY_DRAFT, SEED, STATUSES, STORAGE_KEY, createIdea, filterIdeas, formatIdeaCreated, parseIdeas, restoreIdea, type Idea, type IdeaDraft, type Status, type StatusFilter } from "@/lib/ideas";
 import { useStoredState } from "@/lib/use-stored-state";
 
 // nextShown / prevShown: the rows shown around it when it was removed, for putting focus back nearby.
@@ -234,7 +234,7 @@ export default function Home() {
                   <div>
                     <h3>{idea.title}</h3>
                     <IdeaNote body={idea.body} />
-                    <p className="as-row-meta"><time dateTime={new Date(idea.createdAt).toISOString()}>{formatCreated(idea.createdAt)}</time></p>
+                    <p className="as-row-meta"><time dateTime={new Date(idea.createdAt).toISOString()}>{formatIdeaCreated(idea)}</time></p>
                   </div>
                   <Pill tone={TONE[idea.status]}>{idea.status}</Pill>
                   <button type="button" className="as-plain as-danger" aria-label={`Remove ${idea.title}`} onClick={(event) => remove(idea, event.detail === 0)}>Remove</button>

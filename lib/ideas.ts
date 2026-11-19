@@ -109,7 +109,23 @@ export function restoreIdea(ideas: Idea[], idea: Idea, beforeId: string | null):
   return at < 0 ? [...ideas, idea] : [...ideas.slice(0, at), idea, ...ideas.slice(at)];
 }
 
-/** "18 Aug 2026" in UTC, so the server and every browser print the same date. */
-export function formatCreated(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+/**
+ * "18 Aug 2026". Without a time zone the browser's own zone is used, so an idea saved at 00:30 on 19 Nov in Bangkok
+ * reads 19 Nov there.
+ */
+export function formatCreated(timestamp: number, timeZone?: string): string {
+  return new Date(timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone });
+}
+
+/** The authored samples carry calendar dates (UTC midnight) and are rendered on the server too. */
+export function isSampleIdea(idea: Idea): boolean {
+  return SEED.some((sample) => sample.id === idea.id && sample.createdAt === idea.createdAt);
+}
+
+/**
+ * Date label for a row: samples print in UTC so the server and every browser agree (no hydration mismatch); ideas the
+ * person saved only exist in this browser (localStorage, read after hydration) and print in its time zone.
+ */
+export function formatIdeaCreated(idea: Idea, timeZone?: string): string {
+  return formatCreated(idea.createdAt, isSampleIdea(idea) ? "UTC" : timeZone);
 }

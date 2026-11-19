@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatCreated, restoreIdea, EMPTY_BODY, SEED, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea, signalBars } from "@/lib/ideas";
+import { formatCreated, formatIdeaCreated, isSampleIdea, restoreIdea, EMPTY_BODY, SEED, createIdea, filterIdeas, parseIdeas, pickSelected, removeIdea, signalBars } from "@/lib/ideas";
 
 describe("parseIdeas", () => {
   it("returns null for missing, corrupt or non-array data so the sample is used", () => {
@@ -61,7 +61,22 @@ describe("App shell helpers", () => {
     const list = [a, b];
     expect(restoreIdea(list, a, null)).toBe(list);
   });
-  it("formats the created date in UTC", () => {
-    expect(formatCreated(Date.parse("2026-08-18"))).toBe("18 Aug 2026");
+  it("formats the created date in the given time zone, else the browser's", () => {
+    const halfPastMidnightBangkok = Date.parse("2026-11-18T17:30:00Z"); // 00:30 on 19 Nov in Bangkok
+    expect(formatCreated(halfPastMidnightBangkok, "Asia/Bangkok")).toBe("19 Nov 2026");
+    expect(formatCreated(halfPastMidnightBangkok, "UTC")).toBe("18 Nov 2026");
+    expect(formatCreated(halfPastMidnightBangkok)).toBe(
+      new Date(halfPastMidnightBangkok).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+    );
+  });
+  it("prints samples in UTC and saved ideas in the person's time zone", () => {
+    const sample = SEED[0];
+    expect(isSampleIdea(sample)).toBe(true);
+    expect(formatIdeaCreated(sample, "America/Los_Angeles")).toBe("18 Aug 2026");
+    const saved = createIdea({ title: "Late thought", body: "", status: "Seed" }, "user-1", Date.parse("2026-11-18T17:30:00Z"))!;
+    expect(isSampleIdea(saved)).toBe(false);
+    expect(formatIdeaCreated(saved, "Asia/Bangkok")).toBe("19 Nov 2026");
+    // A sample id with another date (edited data) is not treated as a sample.
+    expect(isSampleIdea({ ...sample, createdAt: sample.createdAt + 1 })).toBe(false);
   });
 });
