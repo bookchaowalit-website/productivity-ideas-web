@@ -37,6 +37,16 @@ afterEach(() => {
 });
 
 describe("composer", () => {
+  it("marks the Idea field required and the Note optional, visibly and for screen readers", () => {
+    press(button("New idea"));
+    const fields = [...host.querySelectorAll<HTMLLabelElement>(".as-composer .as-field")];
+    const idea = fields.find((f) => f.textContent?.startsWith("Idea"))!;
+    const note = fields.find((f) => f.textContent?.startsWith("Note"))!;
+    expect(idea.textContent).toContain("(required)");
+    expect(idea.querySelector("input")!.required).toBe(true);
+    expect(note.textContent).toContain("(optional)");
+    expect(note.querySelector("textarea")!.required).toBe(false);
+  });
   it("opens focused, keeps Add disabled without a title, adds on top and returns focus", () => {
     press(button("New idea"));
     expect(document.activeElement).toBe($(".as-composer input"));

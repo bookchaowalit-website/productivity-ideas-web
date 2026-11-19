@@ -203,10 +203,10 @@ export default function Home() {
 
           {composing ? (
             <form className="as-composer" onSubmit={add} aria-label="New idea">
-              <label className="as-field">Idea
-                <input ref={titleRef} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What keeps coming back?" autoComplete="off" />
+              <label className="as-field">Idea (required)
+                <input ref={titleRef} required aria-required="true" value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What keeps coming back?" autoComplete="off" />
               </label>
-              <label className="as-field">Note
+              <label className="as-field">Note (optional)
                 <textarea value={draft.body} onChange={(event) => setDraft({ ...draft, body: event.target.value })} placeholder="What might be true? What would you test first?" />
               </label>
               <div className="as-composer-foot">
