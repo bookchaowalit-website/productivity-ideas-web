@@ -197,7 +197,7 @@ export default function Home() {
                 <span className="as-sr">Search ideas</span>
                 <input ref={searchRef} type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" />
               </label>
-              {composing ? null : <button ref={newRef} type="button" className="as-button" onClick={() => setComposing(true)}><PlusIcon /><span className="as-button-text">New idea</span></button>}
+              {composing ? null : <button ref={newRef} type="button" className="as-button" aria-label="New idea" onClick={() => setComposing(true)}><PlusIcon /><span className="as-button-text">New idea</span></button>}
             </div>
           </div>
 
@@ -219,7 +219,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="as-composer-actions">
-                  <p className="as-composer-note">Saved in this browser only.</p>
+                  <p className="as-composer-note">Saved in this browser only. No account, no scoring.</p>
                   <button type="button" className="as-plain" onClick={() => { setComposing(false); setDraft(EMPTY_DRAFT); }}>Cancel</button>
                   <button type="submit" className="as-button" disabled={!draft.title.trim()}>Add</button>
                 </div>
