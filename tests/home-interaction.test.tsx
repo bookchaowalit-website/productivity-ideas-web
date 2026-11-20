@@ -364,7 +364,7 @@ describe("review round 2", () => {
 
   it("says in the composer, next to Add, that ideas stay in this browser", () => {
     press(button("New idea"));
-    expect($(".as-composer .as-composer-actions .as-composer-note")!.textContent).toBe("Saved in this browser only.");
+    expect($(".as-composer .as-composer-actions .as-composer-note")!.textContent).toBe("Saved in this browser only. No account, no scoring.");
   });
 
   it("keeps Remove quiet until hover or focus, then red", async () => {
@@ -379,6 +379,8 @@ describe("review round 2", () => {
     expect(phone).toContain(".as-lists { display: flex; flex-wrap: wrap; gap: 6px; }");
     expect(phone).not.toContain("scrollbar-width: none");
     expect(phone).toContain(".as-tools .as-button { flex: none; width: 44px; padding: 0; }");
+    expect(phone).toContain(".as-composer-actions { width: 100%; flex-wrap: nowrap; justify-content: space-between; }");
+    expect(button("New idea").getAttribute("aria-label")).toBe("New idea");
     expect(button("New idea").textContent).toBe("New idea");
   });
 });
