@@ -12,19 +12,19 @@ flowchart TD
   LOAD --> OK{"parseIdeas valid array?"}
   OK -->|"no: missing, corrupt, wrong shape"| SEED["use 3 sample ideas (SEED)"]
   OK -->|yes| IDEAS["stored ideas (bad entries dropped)"]
-  SEED --> VIEW["list + search + status filter + reading panel"]
+  SEED --> VIEW["list + search + status filter; note on the row, long note has Show more"]
   IDEAS --> VIEW
   VIEW --> ADD["add idea: title required, empty note gets placeholder"]
-  VIEW --> RM["remove idea (single or batch)"]
+  VIEW --> RM["Remove button on one row"]
   ADD --> WRITE["writeStored: set localStorage, notify listeners"]
   RM --> WRITE
-  RM --> UNDO["Undo toast 6 s, then gone (no trash)"]
+  RM --> UNDO["Undo toast: closes 6 s after the latest removal, not while focused; Undo restores all removed in that window; no trash"]
   UNDO --> WRITE
   WRITE -->|"storage full or blocked"| MEM["kept in memory for this visit only"]
   AGENT["MCP client POST /api/mcp"] --> RPC["JSON-RPC: initialize, tools/list, tools/call"]
   RPC --> TOOLS["get_all, get_by_id, search over SEED only"]
   RPC -->|"unknown method or tool, bad id or status, bad JSON"| ERR["HTTP 400 JSON-RPC error"]
-  VIEW -.->|"runtime error"| SENTRY["Sentry: errors only, personal data stripped; off when DSN unset"]
+  VIEW -.->|"runtime error"| SENTRY["Sentry: errors only; scrub drops request, user, breadcrumbs, extra, strips URL queries, free-text emails not removed; off when DSN unset"]
 ```
 
 Sources: `app/page.tsx`, `lib/ideas.ts`, `lib/use-stored-state.ts`, `app/api/mcp/route.ts`, `lib/sentry.ts`, `instrumentation.ts`, `next.config.ts`, `README.md`, `PRODUCT.md`
@@ -32,7 +32,8 @@ Sources: `app/page.tsx`, `lib/ideas.ts`, `lib/use-stored-state.ts`, `app/api/mcp
 ข้อเท็จจริงสำคัญจากโค้ด:
 
 - `/more-projects` ตอบ 308 ไป `https://bookchaowalit.com/` (`next.config.ts`)
-- ไอเดียของผู้เยี่ยมชมไม่เคยออกจากเบราว์เซอร์: MCP route มองไม่เห็นข้อมูลนั้น
+- ไอเดียของผู้เยี่ยมชมไม่เคยออกจากเบราว์เซอร์ (ยกเว้นรายงานข้อผิดพลาดไป Sentry ตามที่ scrub อนุญาต): MCP route มองไม่เห็นข้อมูลนั้น
+- CI (GitHub Actions บน push/PR) แยกจากการ deploy: ไม่มี workflow ที่ deploy
 - การ deploy: Vercel CLI ตาม `PRODUCT.md`; push ไป `main` ไม่ deploy ถ้า Git ยังผูก repo เก่า [ต้องยืนยัน]
 
 ## To-Be (ไม่มีแหล่งที่เขียนไว้)
